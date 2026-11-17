@@ -15,7 +15,11 @@ export const modifierEmprunt = z.object({
   dateEmprunt: dateIso,
   dateRetourPrevue: dateIso,
 }).partial()
-  .refine((o) => Object.keys(o).length > 0, 'Au moins un champ à modifier (dateEmprunt, dateRetourPrevue)');
+  .refine((o) => Object.keys(o).length > 0, 'Au moins un champ à modifier (dateEmprunt, dateRetourPrevue)')
+  .refine(
+    (o) => !o.dateEmprunt || !o.dateRetourPrevue || o.dateRetourPrevue > o.dateEmprunt,
+    { message: "La date de retour prévue doit être postérieure à la date d'emprunt", path: ['dateRetourPrevue'] },
+  );
 
 export const listerEmprunts = z.object({
   ...pagination,

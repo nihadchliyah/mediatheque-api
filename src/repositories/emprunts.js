@@ -1,5 +1,5 @@
 import { prisma } from '../db.js';
-import { Conflit, NonTrouve } from '../erreurs.js';
+import { Conflit, NonTrouve, RequeteInvalide } from '../erreurs.js';
 
 const relations = {
   ouvrage: { select: { id: true, titre: true, auteur: true } },
@@ -45,7 +45,19 @@ export function creer({ ouvrageId, utilisateurId, ...donnees }) {
 }
 
 export function modifier(id, donnees) {
-  return prisma.emprunt.update({ where: { id }, data: donnees, include: relations });
+  return prisma.$transaction(async (tx) => {
+    const actuel = await tx.emprunt.findUnique({ where: { id } });
+    if (!actuel) throw new NonTrouve(`Emprunt ${id} introuvable`);
+    const dateEmprunt = donnees.dateEmprunt ?? actuel.dateEmprunt;
+    const dateRetourPrevue = donnees.dateRetourPrevue ?? actuel.dateRetourPrevue;
+    if (dateRetourPrevue <= dateEmprunt) {
+      throw new RequeteInvalide('Paramètres invalides (body)', [{
+        champ: donnees.dateRetourPrevue ? 'dateRetourPrevue' : 'dateEmprunt',
+        message: "La date de retour prévue doit être postérieure à la date d'emprunt",
+      }]);
+    }
+    return tx.emprunt.update({ where: { id }, data: donnees, include: relations });
+  });
 }
 
 export function retourner(id, utilisateurId) {

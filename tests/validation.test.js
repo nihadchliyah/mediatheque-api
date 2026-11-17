@@ -32,4 +32,31 @@ describe('Validation des entrées', () => {
     assert.equal(corps.corps.champs[0].champ, 'ouvrageId');
     assert.equal(query.statut, 400);
   });
+
+  it('PATCH d’un emprunt : la date de retour reste postérieure à la date d’emprunt enregistrée', async () => {
+    const { corps: emprunt } = await requete('POST', '/api/emprunts', {
+      jeton: biblio,
+      corps: { ouvrageId: 2, dateEmprunt: '2026-11-01', dateRetourPrevue: '2026-11-20' },
+    });
+
+    const retourAvant = await requete('PATCH', `/api/emprunts/${emprunt.id}`, {
+      jeton: biblio, corps: { dateRetourPrevue: '2026-10-15' },
+    });
+    const empruntApres = await requete('PATCH', `/api/emprunts/${emprunt.id}`, {
+      jeton: biblio, corps: { dateEmprunt: '2026-12-01' },
+    });
+    const deuxDates = await requete('PATCH', `/api/emprunts/${emprunt.id}`, {
+      jeton: biblio, corps: { dateEmprunt: '2026-11-10', dateRetourPrevue: '2026-11-05' },
+    });
+    const valide = await requete('PATCH', `/api/emprunts/${emprunt.id}`, {
+      jeton: biblio, corps: { dateRetourPrevue: '2026-11-30' },
+    });
+
+    assert.equal(retourAvant.statut, 400);
+    assert.equal(retourAvant.corps.champs[0].champ, 'dateRetourPrevue');
+    assert.equal(empruntApres.statut, 400);
+    assert.equal(empruntApres.corps.champs[0].champ, 'dateEmprunt');
+    assert.equal(deuxDates.statut, 400);
+    assert.equal(valide.statut, 200);
+  });
 });
