@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:17
+    container_name: mediatheque-db
+    environment:
+      POSTGRES_USER: mediatheque
+      POSTGRES_PASSWORD: mediatheque
+      POSTGRES_DB: mediatheque
+    ports:
+      - "5434:5432"
+    volumes:
+      - mediatheque-data:/var/lib/postgresql/data
+
+volumes:
+  mediatheque-data:

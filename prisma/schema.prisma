@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Ouvrage {
+  id         Int       @id @default(autoincrement())
+  titre      String    @db.VarChar(150)
+  auteur     String    @db.VarChar(100)
+  annee      Int
+  disponible Boolean   @default(true)
+  creeLe     DateTime  @default(now())
+  majLe      DateTime  @updatedAt
+  emprunts   Emprunt[]
+
+  @@unique([titre, auteur])
+  @@map("ouvrages")
+}
+
+model Emprunt {
+  id               Int       @id @default(autoincrement())
+  ouvrageId        Int
+  ouvrage          Ouvrage   @relation(fields: [ouvrageId], references: [id], onDelete: Restrict)
+  emprunteur       String    @db.VarChar(80)
+  dateEmprunt      DateTime  @default(now())
+  dateRetourPrevue DateTime
+  rendu            Boolean   @default(false)
+  creeLe           DateTime  @default(now())
+  majLe            DateTime  @updatedAt
+
+  @@index([ouvrageId])
+  @@map("emprunts")
+}

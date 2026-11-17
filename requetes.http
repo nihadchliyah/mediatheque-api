@@ -1,0 +1,214 @@
+### Requêtes de test (extension VS Code « REST Client »)
+### Lancer `npm run seed` avant pour partir d'un état connu.
+
+@base = http://localhost:3000
+@json = application/json
+
+### Santé — 200
+GET {{base}}/sante
+
+### Route inconnue — 404
+GET {{base}}/nimporte-quoi
+
+############################################
+#                OUVRAGES
+############################################
+
+### Lister (pagination) — 200 ; total dans la réponse
+GET {{base}}/api/ouvrages?page=1&limite=5
+
+### Lister les ouvrages disponibles — 200
+GET {{base}}/api/ouvrages?disponible=true
+
+### Limite plafonnée à 50 — 200 (limite = 50 dans la réponse)
+GET {{base}}/api/ouvrages?limite=500
+
+### Query string invalide — 400 (page, disponible)
+GET {{base}}/api/ouvrages?page=0&disponible=peut-etre
+
+### Détail avec emprunts en cours — 200
+GET {{base}}/api/ouvrages/1
+
+### Identifiant inconnu — 404
+GET {{base}}/api/ouvrages/9999
+
+### Identifiant mal formé — 400
+GET {{base}}/api/ouvrages/abc
+
+### Créer — 201 (le champ inconnu "isbn" est ignoré)
+# @name nouvelOuvrage
+POST {{base}}/api/ouvrages
+Content-Type: {{json}}
+
+{
+  "titre": "Notre-Dame de Paris",
+  "auteur": "Victor Hugo",
+  "annee": 1831,
+  "isbn": "ignoré"
+}
+
+### Créer avec données invalides — 400 (titre vide, auteur manquant, année < 1450)
+POST {{base}}/api/ouvrages
+Content-Type: {{json}}
+
+{
+  "titre": "",
+  "annee": 1200
+}
+
+### Créer avec une année future — 400
+POST {{base}}/api/ouvrages
+Content-Type: {{json}}
+
+{
+  "titre": "Livre du futur",
+  "auteur": "Anonyme",
+  "annee": 2999
+}
+
+### JSON mal formé — 400
+POST {{base}}/api/ouvrages
+Content-Type: {{json}}
+
+{ "titre": "oups",
+
+### Modifier — 200
+PATCH {{base}}/api/ouvrages/{{nouvelOuvrage.response.body.id}}
+Content-Type: {{json}}
+
+{
+  "annee": 1832
+}
+
+### Modifier sans champ valide — 400
+PATCH {{base}}/api/ouvrages/{{nouvelOuvrage.response.body.id}}
+Content-Type: {{json}}
+
+{
+  "disponible": false
+}
+
+### Modifier un ouvrage inconnu — 404 (P2025)
+PATCH {{base}}/api/ouvrages/9999
+Content-Type: {{json}}
+
+{
+  "titre": "Fantôme"
+}
+
+### Supprimer un ouvrage emprunté — 409
+DELETE {{base}}/api/ouvrages/1
+
+### Supprimer un ouvrage ayant un historique d'emprunts — 409 (P2003)
+DELETE {{base}}/api/ouvrages/3
+
+### Supprimer un ouvrage inconnu — 404 (P2025)
+DELETE {{base}}/api/ouvrages/9999
+
+############################################
+#                EMPRUNTS
+############################################
+
+### Lister — 200
+GET {{base}}/api/emprunts?page=1&limite=10
+
+### Lister les emprunts non rendus — 200
+GET {{base}}/api/emprunts?rendu=false
+
+### Query string invalide — 400
+GET {{base}}/api/emprunts?rendu=oui&limite=-1
+
+### Détail — 200
+GET {{base}}/api/emprunts/1
+
+### Identifiant inconnu — 404
+GET {{base}}/api/emprunts/9999
+
+### Identifiant mal formé — 400
+GET {{base}}/api/emprunts/abc
+
+### Emprunter le nouvel ouvrage — 201 (l'ouvrage devient indisponible)
+# @name nouvelEmprunt
+POST {{base}}/api/emprunts
+Content-Type: {{json}}
+
+{
+  "ouvrageId": {{nouvelOuvrage.response.body.id}},
+  "emprunteur": "Zoé",
+  "dateRetourPrevue": "2026-12-31"
+}
+
+### Emprunter un ouvrage indisponible — 409 (rien n'est écrit)
+POST {{base}}/api/emprunts
+Content-Type: {{json}}
+
+{
+  "ouvrageId": {{nouvelOuvrage.response.body.id}},
+  "emprunteur": "Noé",
+  "dateRetourPrevue": "2026-12-31"
+}
+
+### Emprunter un ouvrage inconnu — 404
+POST {{base}}/api/emprunts
+Content-Type: {{json}}
+
+{
+  "ouvrageId": 9999,
+  "emprunteur": "Noé",
+  "dateRetourPrevue": "2026-12-31"
+}
+
+### Emprunt invalide — 400 (nom trop court, date non ISO)
+POST {{base}}/api/emprunts
+Content-Type: {{json}}
+
+{
+  "ouvrageId": 4,
+  "emprunteur": "N",
+  "dateRetourPrevue": "31/12/2026"
+}
+
+### Date de retour antérieure à l'emprunt — 400
+POST {{base}}/api/emprunts
+Content-Type: {{json}}
+
+{
+  "ouvrageId": 4,
+  "emprunteur": "Noé",
+  "dateEmprunt": "2026-11-10",
+  "dateRetourPrevue": "2026-11-01"
+}
+
+### Modifier un emprunt — 200
+PATCH {{base}}/api/emprunts/{{nouvelEmprunt.response.body.id}}
+Content-Type: {{json}}
+
+{
+  "dateRetourPrevue": "2027-01-15T10:00:00Z"
+}
+
+### Modifier un emprunt inconnu — 404
+PATCH {{base}}/api/emprunts/9999
+Content-Type: {{json}}
+
+{
+  "emprunteur": "Lina"
+}
+
+### Retour — 200 (emprunt rendu, ouvrage disponible)
+POST {{base}}/api/emprunts/{{nouvelEmprunt.response.body.id}}/retour
+
+### Retour déjà effectué — 409
+POST {{base}}/api/emprunts/{{nouvelEmprunt.response.body.id}}/retour
+
+### Retour d'un emprunt inconnu — 404
+POST {{base}}/api/emprunts/9999/retour
+
+### Supprimer l'emprunt — 204
+DELETE {{base}}/api/emprunts/{{nouvelEmprunt.response.body.id}}
+
+### Supprimer un emprunt inconnu — 404
+DELETE {{base}}/api/emprunts/9999
+
+### Supprimer le nouvel ouvrage (plus d'emprunt rattaché) — 204
+DELETE {{base}}/api/ouvrages/{{nouvelOuvrage.response.body.id}}
