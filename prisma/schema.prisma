@@ -7,6 +7,37 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  membre
+  bibliothecaire
+}
+
+model Utilisateur {
+  id              Int            @id @default(autoincrement())
+  email           String         @unique @db.VarChar(254)
+  motDePasseHache String         @db.VarChar(100)
+  role            Role           @default(membre)
+  creeLe          DateTime       @default(now())
+  majLe           DateTime       @updatedAt
+  emprunts        Emprunt[]
+  refreshTokens   RefreshToken[]
+
+  @@map("utilisateurs")
+}
+
+model RefreshToken {
+  id            Int         @id @default(autoincrement())
+  jti           String      @unique @db.VarChar(64)
+  utilisateurId Int
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  expireLe      DateTime
+  revoqueLe     DateTime?
+  creeLe        DateTime    @default(now())
+
+  @@index([utilisateurId])
+  @@map("refresh_tokens")
+}
+
 model Ouvrage {
   id         Int       @id @default(autoincrement())
   titre      String    @db.VarChar(150)
@@ -22,16 +53,18 @@ model Ouvrage {
 }
 
 model Emprunt {
-  id               Int       @id @default(autoincrement())
+  id               Int         @id @default(autoincrement())
   ouvrageId        Int
-  ouvrage          Ouvrage   @relation(fields: [ouvrageId], references: [id], onDelete: Restrict)
-  emprunteur       String    @db.VarChar(80)
-  dateEmprunt      DateTime  @default(now())
+  ouvrage          Ouvrage     @relation(fields: [ouvrageId], references: [id], onDelete: Restrict)
+  utilisateurId    Int
+  utilisateur      Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Restrict)
+  dateEmprunt      DateTime    @default(now())
   dateRetourPrevue DateTime
-  rendu            Boolean   @default(false)
-  creeLe           DateTime  @default(now())
-  majLe            DateTime  @updatedAt
+  rendu            Boolean     @default(false)
+  creeLe           DateTime    @default(now())
+  majLe            DateTime    @updatedAt
 
   @@index([ouvrageId])
+  @@index([utilisateurId])
   @@map("emprunts")
 }

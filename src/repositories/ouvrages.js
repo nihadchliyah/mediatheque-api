@@ -9,10 +9,10 @@ export async function lister({ page, limite, disponible }) {
   return { donnees, total };
 }
 
-export function trouverAvecEmpruntsEnCours(id) {
+export function trouverAvecEmpruntsEnCours(id, utilisateurId) {
   return prisma.ouvrage.findUnique({
     where: { id },
-    include: { emprunts: { where: { rendu: false }, orderBy: { dateEmprunt: 'desc' } } },
+    include: { emprunts: { where: { rendu: false, ...(utilisateurId && { utilisateurId }) }, orderBy: { dateEmprunt: 'desc' } } },
   });
 }
 

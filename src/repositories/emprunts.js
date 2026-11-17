@@ -1,25 +1,36 @@
 import { prisma } from '../db.js';
 import { Conflit, NonTrouve } from '../erreurs.js';
 
-const avecOuvrage = { ouvrage: { select: { id: true, titre: true, auteur: true } } };
+const relations = {
+  ouvrage: { select: { id: true, titre: true, auteur: true } },
+  utilisateur: { select: { id: true, email: true } },
+};
 
-export async function lister({ page, limite, rendu }) {
-  const where = rendu === undefined ? {} : { rendu };
+const filtre = ({ rendu, utilisateurId }) => ({
+  ...(rendu !== undefined && { rendu }),
+  ...(utilisateurId !== undefined && { utilisateurId }),
+});
+
+export async function lister({ page, limite, ...criteres }) {
+  const where = filtre(criteres);
   const [donnees, total] = await prisma.$transaction([
     prisma.emprunt.findMany({
-      where, include: avecOuvrage, orderBy: { id: 'asc' }, skip: (page - 1) * limite, take: limite,
+      where, include: relations, orderBy: { id: 'asc' }, skip: (page - 1) * limite, take: limite,
     }),
     prisma.emprunt.count({ where }),
   ]);
   return { donnees, total };
 }
 
-export function trouver(id) {
-  return prisma.emprunt.findUnique({ where: { id }, include: avecOuvrage });
+export function trouver(id, utilisateurId) {
+  return prisma.emprunt.findFirst({ where: { id, ...filtre({ utilisateurId }) }, include: relations });
 }
 
-export function creer({ ouvrageId, ...donnees }) {
+export function creer({ ouvrageId, utilisateurId, ...donnees }) {
   return prisma.$transaction(async (tx) => {
+    if (!(await tx.utilisateur.findUnique({ where: { id: utilisateurId }, select: { id: true } }))) {
+      throw new NonTrouve(`Utilisateur ${utilisateurId} introuvable`);
+    }
     const { count } = await tx.ouvrage.updateMany({
       where: { id: ouvrageId, disponible: true },
       data: { disponible: false },
@@ -29,18 +40,19 @@ export function creer({ ouvrageId, ...donnees }) {
       if (!ouvrage) throw new NonTrouve(`Ouvrage ${ouvrageId} introuvable`);
       throw new Conflit(`L'ouvrage ${ouvrageId} est déjà emprunté`);
     }
-    return tx.emprunt.create({ data: { ouvrageId, ...donnees }, include: avecOuvrage });
+    return tx.emprunt.create({ data: { ouvrageId, utilisateurId, ...donnees }, include: relations });
   });
 }
 
 export function modifier(id, donnees) {
-  return prisma.emprunt.update({ where: { id }, data: donnees, include: avecOuvrage });
+  return prisma.emprunt.update({ where: { id }, data: donnees, include: relations });
 }
 
-export function retourner(id) {
+export function retourner(id, utilisateurId) {
   return prisma.$transaction(async (tx) => {
-    const { count } = await tx.emprunt.updateMany({ where: { id, rendu: false }, data: { rendu: true } });
-    const emprunt = await tx.emprunt.findUnique({ where: { id }, include: avecOuvrage });
+    const where = { id, ...filtre({ utilisateurId }) };
+    const { count } = await tx.emprunt.updateMany({ where: { ...where, rendu: false }, data: { rendu: true } });
+    const emprunt = await tx.emprunt.findFirst({ where, include: relations });
     if (!emprunt) throw new NonTrouve(`Emprunt ${id} introuvable`);
     if (count === 0) throw new Conflit(`L'emprunt ${id} est déjà rendu`);
     await tx.ouvrage.update({ where: { id: emprunt.ouvrageId }, data: { disponible: true } });
