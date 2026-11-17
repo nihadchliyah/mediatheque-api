@@ -1,11 +1,9 @@
 import { z } from 'zod';
-import { booleenQuery, dateIso, pagination } from './communs.js';
-
-const id = z.number().int().positive();
+import { booleenQuery, dateIso, identifiant, identifiantTexte, pagination } from './communs.js';
 
 export const creerEmprunt = z.object({
-  ouvrageId: id,
-  utilisateurId: id.optional(),
+  ouvrageId: identifiant,
+  utilisateurId: identifiant.optional(),
   dateEmprunt: dateIso.optional(),
   dateRetourPrevue: dateIso,
 }).refine(
@@ -22,5 +20,5 @@ export const modifierEmprunt = z.object({
 export const listerEmprunts = z.object({
   ...pagination,
   rendu: booleenQuery.optional(),
-  utilisateurId: z.coerce.number().int().positive().optional(),
+  utilisateurId: identifiantTexte.optional(),
 });

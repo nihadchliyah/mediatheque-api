@@ -2,17 +2,23 @@ import { z } from 'zod';
 
 z.config(z.locales.fr());
 
-export const idParams = z.object({
-  id: z.coerce.number({ error: "L'identifiant doit être un nombre" })
-    .int("L'identifiant doit être un entier")
-    .positive("L'identifiant doit être positif"),
-});
+const ENTIER_MAX = 2147483647;
+
+export const identifiant = z.number({ error: "L'identifiant doit être un nombre" })
+  .int("L'identifiant doit être un entier")
+  .positive("L'identifiant doit être positif")
+  .max(ENTIER_MAX, "L'identifiant est trop grand");
+
+export const identifiantTexte = z.coerce.number({ error: "L'identifiant doit être un nombre" })
+  .pipe(identifiant);
+
+export const idParams = z.object({ id: identifiantTexte });
 
 export const booleenQuery = z.enum(['true', 'false'], { error: 'Valeur attendue : true ou false' })
   .transform((v) => v === 'true');
 
 export const pagination = {
-  page: z.coerce.number().int().min(1).default(1),
+  page: z.coerce.number().int().min(1).max(100000).default(1),
   limite: z.coerce.number().int().min(1).default(10).transform((v) => Math.min(v, 50)),
 };
 
