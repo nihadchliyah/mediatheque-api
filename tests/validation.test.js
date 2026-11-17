@@ -59,4 +59,19 @@ describe('Validation des entrées', () => {
     assert.equal(deuxDates.statut, 400);
     assert.equal(valide.statut, 200);
   });
+
+  it('suppression d’un ouvrage : 409 s’il est emprunté, 404 s’il est inconnu, 204 sinon', async () => {
+    await requete('POST', '/api/emprunts', {
+      jeton: biblio, corps: { ouvrageId: 1, dateRetourPrevue: '2099-01-01' },
+    });
+
+    const emprunte = await requete('DELETE', '/api/ouvrages/1', { jeton: biblio });
+    const inconnu = await requete('DELETE', '/api/ouvrages/9999', { jeton: biblio });
+    const libre = await requete('DELETE', '/api/ouvrages/3', { jeton: biblio });
+
+    assert.equal(emprunte.statut, 409);
+    assert.equal(inconnu.statut, 404);
+    assert.equal(libre.statut, 204);
+    assert.equal(await prisma.ouvrage.count({ where: { id: 1 } }), 1);
+  });
 });

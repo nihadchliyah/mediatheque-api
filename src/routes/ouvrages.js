@@ -4,7 +4,7 @@ import { valider } from '../middlewares/valider.js';
 import { autoriser, estBibliothecaire } from '../middlewares/auth.js';
 import { idParams } from '../schemas/communs.js';
 import { creerOuvrage, listerOuvrages, modifierOuvrage } from '../schemas/ouvrages.js';
-import { Conflit, NonTrouve } from '../erreurs.js';
+import { NonTrouve } from '../erreurs.js';
 
 export const routeurOuvrages = Router();
 
@@ -35,10 +35,6 @@ routeurOuvrages.patch('/:id', bibliothecaire, valider(idParams, 'params'), valid
 });
 
 routeurOuvrages.delete('/:id', bibliothecaire, valider(idParams, 'params'), async (req, res) => {
-  const { id } = req.valide.params;
-  if (await depot.compterEmpruntsEnCours(id) > 0) {
-    throw new Conflit('Impossible de supprimer un ouvrage actuellement emprunté');
-  }
-  await depot.supprimer(id);
+  await depot.supprimer(req.valide.params.id);
   res.status(204).end();
 });

@@ -1,4 +1,5 @@
 import { prisma } from '../db.js';
+import { Conflit, NonTrouve } from '../erreurs.js';
 
 export async function lister({ page, limite, disponible }) {
   const where = disponible === undefined ? {} : { disponible };
@@ -24,10 +25,12 @@ export function modifier(id, donnees) {
   return prisma.ouvrage.update({ where: { id }, data: donnees });
 }
 
-export function compterEmpruntsEnCours(id) {
-  return prisma.emprunt.count({ where: { ouvrageId: id, rendu: false } });
-}
-
 export function supprimer(id) {
-  return prisma.ouvrage.delete({ where: { id } });
+  return prisma.$transaction(async (tx) => {
+    const verrou = await tx.$queryRaw`SELECT id FROM ouvrages WHERE id = ${id} FOR UPDATE`;
+    if (verrou.length === 0) throw new NonTrouve('Ouvrage introuvable');
+    const enCours = await tx.emprunt.count({ where: { ouvrageId: id, rendu: false } });
+    if (enCours > 0) throw new Conflit('Impossible de supprimer un ouvrage actuellement emprunté');
+    await tx.ouvrage.delete({ where: { id } });
+  });
 }
