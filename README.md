@@ -13,7 +13,7 @@ Stack : Node 24, Express 5, Zod 4, Prisma 7 (PostgreSQL, adaptateur `pg`), jose 
 
 ```bash
 npm ci                    # installe les dépendances et génère le client Prisma (postinstall)
-cp .env.example .env      # puis renseigner DATABASE_URL et générer les secrets (voir plus bas)
+cp .env.example .env      # puis choisir les identifiants PostgreSQL et générer les secrets (voir plus bas)
 docker compose up -d      # facultatif : lance PostgreSQL sur le port 5434
 npm run db:migrate        # applique les migrations (prisma migrate deploy)
 npm run seed              # 3 comptes, 10 ouvrages, 3 emprunts dont 1 rendu (relançable)
@@ -26,6 +26,9 @@ L'API répond sur `http://localhost:3000/sante`.
 
 | Variable              | Description                                              | Exemple                                                                 |
 | --------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `POSTGRES_USER`       | Utilisateur créé par le conteneur PostgreSQL (`docker-compose.yml`) | `UTILISATEUR`                                       |
+| `POSTGRES_PASSWORD`   | Mot de passe de cet utilisateur, choisi localement      | `MOT_DE_PASSE`                                                          |
+| `POSTGRES_DB`         | Base créée par le conteneur                              | `mediatheque`                                                           |
 | `PORT`                | Port HTTP de l'API                                       | `3000`                                                                  |
 | `DATABASE_URL`        | Chaîne de connexion PostgreSQL                           | `postgresql://UTILISATEUR:MOT_DE_PASSE@localhost:5434/mediatheque?schema=public` |
 | `JWT_ACCESS_SECRET`   | Secret de signature des access tokens (32 caractères min.) | voir « Génération des secrets »                                       |
@@ -34,6 +37,8 @@ L'API répond sur `http://localhost:3000/sante`.
 | `REFRESH_DUREE_JOURS` | Durée de vie du refresh token en jours                   | `7`                                                                     |
 | `CORS_ORIGINS`        | Origines autorisées, séparées par des virgules           | `http://localhost:5173,http://localhost:8081`                           |
 | `BCRYPT_COUT`         | Coût bcrypt (12 minimum)                                 | `12`                                                                    |
+
+`docker-compose.yml` lit `POSTGRES_USER`, `POSTGRES_PASSWORD` et `POSTGRES_DB` depuis `.env` : aucun mot de passe n'est versionné. `DATABASE_URL` doit reprendre les mêmes identifiants.
 
 La configuration est validée au démarrage : l'API refuse de démarrer si une variable manque ou si un secret est trop court.
 

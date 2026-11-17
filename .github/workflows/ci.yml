@@ -14,7 +14,7 @@ jobs:
         image: postgres:17
         env:
           POSTGRES_USER: ci
-          POSTGRES_PASSWORD: ci
+          POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: mediatheque_test
         ports:
           - 5432:5432
@@ -26,7 +26,7 @@ jobs:
 
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://ci:ci@localhost:5432/mediatheque_test?schema=public
+      DATABASE_URL: postgresql://ci@localhost:5432/mediatheque_test?schema=public
       CORS_ORIGINS: http://localhost:5173
 
     steps:
