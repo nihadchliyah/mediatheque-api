@@ -11,10 +11,11 @@ const champs = {
     .refine((a) => a <= anneeCourante(), "L'année ne peut pas dépasser l'année courante"),
 };
 
-export const creerOuvrage = z.object(champs);
+export const creerOuvrage = z.object(champs).meta({ id: 'CreerOuvrage' });
 
 export const modifierOuvrage = z.object(champs).partial()
-  .refine((o) => Object.keys(o).length > 0, 'Au moins un champ à modifier (titre, auteur, annee)');
+  .refine((o) => Object.keys(o).length > 0, 'Au moins un champ à modifier (titre, auteur, annee)')
+  .meta({ id: 'ModifierOuvrage' });
 
 export const listerOuvrages = z.object({
   ...pagination,

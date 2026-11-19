@@ -3,7 +3,7 @@ import { identifiant, identifiantTexte, pagination } from './communs.ts';
 
 export const creerReservation = z.object({
   ouvrageId: identifiant,
-});
+}).meta({ id: 'CreerReservation' });
 
 export const listerReservations = z.object({
   ...pagination,

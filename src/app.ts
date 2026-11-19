@@ -11,6 +11,7 @@ import { routeurAuth } from './routes/auth.ts';
 import { routeurOuvrages } from './routes/ouvrages.ts';
 import { routeurEmprunts } from './routes/emprunts.ts';
 import { routeurReservations } from './routes/reservations.ts';
+import { routeurDocs } from './routes/docs.ts';
 
 export type OptionsApp = {
   originesAutorisees?: string[];
@@ -45,6 +46,7 @@ export function creerApp({ originesAutorisees = config.CORS_ORIGINS, limiteAuth 
   app.get('/sante', (_req, res) => {
     res.json({ statut: 'ok' });
   });
+  app.use('/api', routeurDocs);
   app.use('/api/auth', limiteur(15 * 60 * 1000, limiteAuth, 'Trop de tentatives, réessayez dans 15 minutes'), routeurAuth);
   app.use('/api/ouvrages', authentifier, routeurOuvrages);
   app.use('/api/emprunts', authentifier, routeurEmprunts);
