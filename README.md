@@ -186,32 +186,37 @@ curl -N -X POST http://localhost:3000/api/assistant/flux \
 
   Aucun outil n'accepte d'identifiant d'utilisateur. Même si un message pousse le modèle à « regarder les emprunts de Léo », il n'a aucun moyen d'y accéder.
 - **Mémoire :** la conversation est mémorisée par utilisateur authentifié et tronquée aux **dix derniers échanges**. Elle est effacée par `DELETE /api/assistant/memoire`. Une réponse interrompue n'est pas mémorisée.
-- **Interruption :** quand le client ferme la connexion, un `AbortController` arrête la génération. Le bouchon cesse d'émettre et l'appel OpenAI en cours est annulé.
+- **Interruption :** quand le client ferme la connexion, un `AbortController` arrête la génération. Le bouchon cesse d'émettre et l'appel OpenAI en cours est annulé. Le journal l'indique par une ligne `assistant interrompu par le client` : coupez `curl -N` avec Ctrl+C pour la voir.
 - **Coût :**
   - chaque appel au fournisseur est journalisé, sous la forme `assistant fournisseur=openai utilisateur=2 jetons entree=120 sortie=8 total=128` ;
+  - chaque réponse est limitée à `max_output_tokens: 400` ;
   - la boucle d'appels d'outils est bornée à 4 tours ;
   - l'historique est tronqué ;
   - chaque outil renvoie 10 éléments au plus.
 - **Fournisseurs :** `IA_FOURNISSEUR` choisit entre deux implémentations :
-  - `openai` utilise le SDK officiel (Chat Completions en streaming, appels d'outils) ;
+  - `openai` utilise le SDK officiel et l'API Responses (`responses.create` avec `instructions`, `stream: true` et function calling) ;
   - `bouchon` est déterministe : il choisit l'outil selon la question, l'exécute réellement avec les droits de l'utilisateur et diffuse une réponse mot par mot. Les tests utilisent toujours le bouchon.
 
-> **Modes testés :** le mode bouchon est testé (tests automatisés, `curl -N`, `requetes.http`). Le mode OpenAI a été vérifié contre un serveur local qui simule l'API OpenAI : streaming, appel d'outil puis second tour, usage journalisé. Il n'a **pas encore été testé avec une clé réelle**.
+> **Modes testés :** le mode bouchon est testé (tests automatisés, `curl -N`, `requetes.http`). Le mode OpenAI a été vérifié contre un serveur local qui simule l'API Responses (le SDK lit `OPENAI_BASE_URL`) : streaming, appel d'outil puis second tour, usage journalisé. Il n'a **pas encore été testé avec une clé réelle**.
 
-## Relecture OWASP API Security Top 10 (2023)
+## Relecture OWASP (tableau de la séance 8)
 
-| Risque | Parade | Où |
-| ------ | ------ | -- |
-| API1 Contrôle d'accès au niveau objet (BOLA) | Pour un membre, emprunts et réservations sont filtrés par `utilisateurId` dans la requête SQL elle-même. Une ressource d'un autre membre renvoie 404. Les outils de l'assistant prennent l'identité du jeton et aucun identifiant. | `middlewares/auth.ts` (`proprietaire`), `repositories/*.ts`, `services/assistant/outils.ts` ; tests `acces`, `reservations`, `assistant` |
-| API2 Authentification défaillante | bcrypt coût 12 et hachage factice contre l'énumération ; JWT HS256 avec algorithme, émetteur et audience imposés ; access token de 15 min ; refresh token à usage unique, révocable, avec révocation totale en cas de rejeu ; 10 tentatives par 15 min | `services/auth.ts`, `routes/auth.ts`, `repositories/refreshTokens.ts`, `app.ts` |
-| API3 Contrôle d'accès au niveau propriété | Zod retire les champs inconnus (`role` à l'inscription, `utilisateurId` au PATCH d'un emprunt, `disponible` sur un ouvrage). Les `select` Prisma n'exposent ni le hachage ni les autres données personnelles (relations limitées à `id` et `email`). | `schemas/*.ts`, `repositories/utilisateurs.ts` (`champsPublics`), relations des dépôts |
-| API4 Consommation de ressources non restreinte | 300 requêtes par minute en tout ; 10 par 15 min sur l'authentification ; 10 questions par minute et par utilisateur à l'assistant ; corps JSON ≤ 100 Ko (413) ; pagination plafonnée à 50 ; question ≤ 500 caractères ; mémoire limitée à 10 échanges ; 4 tours d'outils au plus ; délai OpenAI de 30 s | `app.ts`, `routes/assistant.ts`, `schemas/communs.ts`, `services/assistant/*` |
-| API5 Contrôle d'accès au niveau fonction | `autoriser('bibliothecaire')` protège les écritures sur le catalogue, le PATCH et le DELETE d'emprunt ; `autoriser('membre')` protège la réservation. Les rôles sont vérifiés côté serveur à partir du jeton. | `middlewares/auth.ts`, `routes/*.ts` ; test `acces` (403) |
-| API6 Accès non restreint aux flux métier sensibles | Emprunt atomique (`updateMany` conditionnel) ; une seule réservation par membre et par ouvrage, garantie par une contrainte d'unicité ; conversion réservation → emprunt dans une transaction avec `SELECT … FOR UPDATE` ; débit de l'assistant limité | `repositories/emprunts.ts`, `repositories/reservations.ts`, `prisma/schema.prisma` |
-| API7 Server-Side Request Forgery | L'API n'appelle aucune URL fournie par un client. Le seul appel sortant vise l'API OpenAI, fixée par la configuration. | `services/assistant/openai.ts` |
-| API8 Mauvaise configuration de sécurité | helmet (CSP, HSTS, nosniff) ; `X-Powered-By` désactivé ; CORS limité à une liste d'origines ; gestionnaire d'erreurs JSON sans pile d'exécution ni message interne ; jeton invalide → 401, jamais 500 ; configuration validée au démarrage ; image Docker non root | `app.ts`, `middlewares/erreurs.ts`, `config.ts`, `Dockerfile` |
-| API9 Gestion d'inventaire incorrecte | Spécification OpenAPI générée depuis les schémas de validation : elle ne peut pas diverger du code. Un test vérifie que chaque route protégée déclare `bearerAuth` et 401. `requetes.http` couvre toutes les routes. | `docs/openapi.ts`, `tests/docs.test.ts` |
-| API10 Consommation non sûre d'API tierces | Les arguments renvoyés par le modèle sont revalidés par Zod avant exécution ; un outil inconnu est refusé ; le prompt système traite les résultats d'outils comme des données (injection de prompt) ; une erreur du fournisseur devient `event: erreur` sans détail ; la clé reste dans `.env` | `services/assistant/outils.ts`, `openai.ts`, `index.ts`, `routes/assistant.ts` |
+Chaque ligne du Top 10 OWASP pour les API a été vérifiée route par route. Pour chacune, le tableau indique la parade et son emplacement dans le code.
+
+| Risque OWASP API | Exemple dans ce projet | Parade | Où |
+| ---------------- | ---------------------- | ------ | -- |
+| Autorisation au niveau des objets cassée | `GET /api/emprunts/42` ou `DELETE /api/reservations/7` d'un autre membre ; demander à l'assistant les emprunts d'un autre | Pour un membre, le filtre `utilisateurId` est appliqué dans la requête elle-même, et une ressource d'un autre membre renvoie 404. Les outils de l'assistant prennent l'identité par fermeture, sans argument d'identifiant. La mémoire est indexée par l'utilisateur du jeton. | `middlewares/auth.ts` (`proprietaire`), `repositories/emprunts.ts`, `repositories/reservations.ts`, `services/assistant/outils.ts`, `memoire.ts` ; tests `acces`, `reservations`, `assistant` |
+| Authentification cassée | jeton sans expiration, secret faible, force brute sur la connexion | Access token de 15 min ; secrets aléatoires de 32 caractères minimum, validés au démarrage ; algorithme, émetteur et audience imposés ; refresh token révocable et à usage unique ; bcrypt coût 12 avec hachage factice ; 429 après 10 tentatives en 15 min | `services/auth.ts`, `config.ts`, `routes/auth.ts`, `repositories/refreshTokens.ts`, `app.ts` ; tests `auth`, `securite` |
+| Exposition excessive de données | renvoyer `motDePasseHache`, ou tout l'utilisateur dans un emprunt | `select` explicites : `champsPublics` pour les comptes, `{ id, email }` dans les relations ; les outils de l'assistant ne renvoient que titre, auteur, dates et rang | `repositories/utilisateurs.ts`, `relations` des dépôts, `services/assistant/outils.ts` ; test `auth` (pas de hachage dans la réponse) |
+| Consommation de ressources illimitée | corps géant, liste sans pagination, boucle d'appels au modèle | JSON ≤ 100 Ko (413) ; pagination plafonnée à 50 ; 300 requêtes par minute ; assistant limité à 10 questions par minute et par utilisateur, question ≤ 500 caractères, `max_output_tokens` 400, 4 tours d'outils au plus, historique de 10 échanges, 10 résultats par outil, arrêt à la coupure du client | `app.ts`, `schemas/communs.ts`, `schemas/assistant.ts`, `routes/assistant.ts`, `services/assistant/openai.ts` |
+| Autorisation au niveau des fonctions cassée | `DELETE /api/ouvrages/1` ou `PATCH /api/emprunts/1` par un membre | `autoriser('bibliothecaire')` sur les écritures du catalogue et le PATCH ou DELETE d'emprunt ; `autoriser('membre')` sur la réservation | `middlewares/auth.ts`, `routes/*.ts` ; tests `acces` et `reservations` (403) |
+| Affectation en masse | `role: "bibliothecaire"` à l'inscription, `utilisateurId` dans le PATCH d'un emprunt, `disponible` dans un ouvrage | Les schémas Zod retirent les champs inconnus. Un membre emprunte et réserve toujours pour lui-même : l'identifiant vient du jeton. | `schemas/*.ts`, `routes/emprunts.ts`, `routes/reservations.ts` ; tests `auth` et `acces` |
+| Mauvaise configuration | pile d'exécution dans une réponse, `CORS *`, `X-Powered-By` | Gestionnaire d'erreurs unique, en JSON et sans pile ; jeton invalide → 401, jamais 500 ; une erreur du modèle devient `event: erreur` neutre ; helmet ; origines CORS lues dans `CORS_ORIGINS` ; image Docker non root | `middlewares/erreurs.ts`, `routes/assistant.ts`, `app.ts`, `Dockerfile` ; test `securite` |
+| Injection | un objet à la place d'une chaîne dans un filtre, un identifiant hors des entiers | Les types sont validés par Zod avant toute requête (identifiants bornés à la plage `int4`) ; Prisma paramètre les requêtes, et le seul SQL brut (`FOR UPDATE`) passe par un gabarit paramétré ; aucun outil de l'assistant n'exécute de requête libre | `schemas/communs.ts`, `repositories/ouvrages.ts` (`verrouillerOuvrage`) ; test `validation` |
+| Inventaire incomplet | route oubliée ou non documentée | La spécification OpenAPI est générée depuis les schémas de validation, sur `/api/docs`. Un test vérifie que chaque route protégée déclare `bearerAuth` et 401. `requetes.http` couvre toutes les routes. | `docs/openapi.ts`, `tests/docs.test.ts`, `requetes.http` |
+| Consommation non sûre d'API tierces | faire confiance aux arguments ou au texte renvoyés par le modèle | Les arguments d'outils sont revalidés par Zod et un outil inconnu est refusé. Les instructions traitent les résultats d'outils comme des données. Le délai et les nouvelles tentatives sont bornés, et l'erreur du fournisseur n'est pas transmise telle quelle. | `services/assistant/outils.ts`, `openai.ts`, `index.ts` |
+
+Le même contrôle s'applique aux secrets et aux dépendances : aucun secret dans le dépôt ni dans l'historique, et `npm audit --audit-level=high` tourne en intégration continue.
 
 ## Tests et intégration continue
 
@@ -276,7 +281,7 @@ docker-compose.yml       PostgreSQL ; profil « api » : migrations et API
 - **TypeScript sans étape de build en développement :** Node 24 retire les types à l'exécution (`erasableSyntaxOnly`, imports en `.ts`), et `tsc` réécrit les extensions pour produire `dist/`. Le middleware `valider` transmet au gestionnaire des entrées typées par `z.output` des schémas : aucun transtypage dans les routes.
 - **PostgreSQL et Prisma :** ce couple fournit les relations, les transactions interactives, les verrous de ligne (`FOR UPDATE`) et la contrainte d'unicité dont les emprunts et les réservations ont besoin. Les migrations sont versionnées.
 - **zod-openapi :** la bibliothèque s'appuie sur les métadonnées natives de Zod 4 (`.meta()`). Les schémas de validation sont donc aussi ceux de la documentation.
-- **SDK OpenAI plutôt que LangChain.js :** une seule dépendance, et un contrôle direct sur la boucle d'outils, le streaming, l'annulation et l'usage. L'interface `FournisseurIA` isole le fournisseur, ce qui permet d'en ajouter un autre sans toucher aux routes.
+- **SDK OpenAI (API Responses) plutôt que LangChain.js :** une seule dépendance, et un contrôle direct sur la boucle d'outils, le streaming, l'annulation et l'usage. L'interface `FournisseurIA` isole le fournisseur, ce qui permet d'en ajouter un autre sans toucher aux routes.
 - **Mémoire de l'assistant en RAM :** c'est simple et suffisant pour une instance. Elle est perdue au redémarrage et n'est pas partagée entre plusieurs instances : il faudrait passer à Redis ou à une table pour monter en charge.
 
 ## Évolution du projet
