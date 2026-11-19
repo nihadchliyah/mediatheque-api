@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { booleenQuery, dateIso, identifiant, identifiantTexte, pagination } from './communs.js';
+import { booleenQuery, dateIso, identifiant, identifiantTexte, pagination } from './communs.ts';
 
 export const creerEmprunt = z.object({
   ouvrageId: identifiant,
@@ -26,3 +26,7 @@ export const listerEmprunts = z.object({
   rendu: booleenQuery.optional(),
   utilisateurId: identifiantTexte.optional(),
 });
+
+export type CreerEmprunt = z.output<typeof creerEmprunt>;
+export type ModifierEmprunt = z.output<typeof modifierEmprunt>;
+export type ListerEmprunts = z.output<typeof listerEmprunts>;

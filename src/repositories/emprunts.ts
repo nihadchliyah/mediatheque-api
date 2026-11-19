@@ -1,17 +1,20 @@
-import { prisma } from '../db.js';
-import { Conflit, NonTrouve, RequeteInvalide } from '../erreurs.js';
+import { prisma } from '../db.ts';
+import { Conflit, NonTrouve, RequeteInvalide } from '../erreurs.ts';
+import type { CreerEmprunt, ListerEmprunts, ModifierEmprunt } from '../schemas/emprunts.ts';
 
 const relations = {
   ouvrage: { select: { id: true, titre: true, auteur: true } },
   utilisateur: { select: { id: true, email: true } },
-};
+} as const;
 
-const filtre = ({ rendu, utilisateurId }) => ({
+type Criteres = { rendu?: boolean; utilisateurId?: number };
+
+const filtre = ({ rendu, utilisateurId }: Criteres) => ({
   ...(rendu !== undefined && { rendu }),
   ...(utilisateurId !== undefined && { utilisateurId }),
 });
 
-export async function lister({ page, limite, ...criteres }) {
+export async function lister({ page, limite, ...criteres }: ListerEmprunts) {
   const where = filtre(criteres);
   const [donnees, total] = await prisma.$transaction([
     prisma.emprunt.findMany({
@@ -22,11 +25,11 @@ export async function lister({ page, limite, ...criteres }) {
   return { donnees, total };
 }
 
-export function trouver(id, utilisateurId) {
+export function trouver(id: number, utilisateurId?: number) {
   return prisma.emprunt.findFirst({ where: { id, ...filtre({ utilisateurId }) }, include: relations });
 }
 
-export function creer({ ouvrageId, utilisateurId, ...donnees }) {
+export function creer({ ouvrageId, utilisateurId, ...donnees }: Omit<CreerEmprunt, 'utilisateurId'> & { utilisateurId: number }) {
   return prisma.$transaction(async (tx) => {
     if (!(await tx.utilisateur.findUnique({ where: { id: utilisateurId }, select: { id: true } }))) {
       throw new NonTrouve(`Utilisateur ${utilisateurId} introuvable`);
@@ -44,7 +47,7 @@ export function creer({ ouvrageId, utilisateurId, ...donnees }) {
   });
 }
 
-export function modifier(id, donnees) {
+export function modifier(id: number, donnees: ModifierEmprunt) {
   return prisma.$transaction(async (tx) => {
     const actuel = await tx.emprunt.findUnique({ where: { id } });
     if (!actuel) throw new NonTrouve(`Emprunt ${id} introuvable`);
@@ -60,7 +63,7 @@ export function modifier(id, donnees) {
   });
 }
 
-export function retourner(id, utilisateurId) {
+export function retourner(id: number, utilisateurId?: number) {
   return prisma.$transaction(async (tx) => {
     const where = { id, ...filtre({ utilisateurId }) };
     const { count } = await tx.emprunt.updateMany({ where: { ...where, rendu: false }, data: { rendu: true } });
@@ -72,7 +75,7 @@ export function retourner(id, utilisateurId) {
   });
 }
 
-export function supprimer(id) {
+export function supprimer(id: number) {
   return prisma.$transaction(async (tx) => {
     const emprunt = await tx.emprunt.delete({ where: { id } });
     if (!emprunt.rendu) {

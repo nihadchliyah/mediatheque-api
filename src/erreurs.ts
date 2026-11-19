@@ -1,5 +1,10 @@
+export type DetailChamp = { champ: string; message: string };
+
 export class ErreurHttp extends Error {
-  constructor(statut, message, details) {
+  readonly statut: number;
+  readonly details?: DetailChamp[];
+
+  constructor(statut: number, message: string, details?: DetailChamp[]) {
     super(message);
     this.name = 'ErreurHttp';
     this.statut = statut;
@@ -20,7 +25,7 @@ export class Conflit extends ErreurHttp {
 }
 
 export class RequeteInvalide extends ErreurHttp {
-  constructor(message = 'Requête invalide', details) {
+  constructor(message = 'Requête invalide', details?: DetailChamp[]) {
     super(400, message, details);
   }
 }

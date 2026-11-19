@@ -1,14 +1,14 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { BIBLIO, client, connecter, demarrer, inscrireEtConnecter, prisma, reinitialiserBase } from './aide.js';
+import { BIBLIO, client, connecter, demarrer, inscrireEtConnecter, prisma, reinitialiserBase, type Requete, type Serveur } from './aide.ts';
 
 describe('Autorisation', () => {
-  let serveur;
-  let requete;
-  let biblio;
-  let alice;
-  let bruno;
-  let empruntAlice;
+  let serveur: Serveur;
+  let requete: Requete;
+  let biblio: string;
+  let alice: string;
+  let bruno: string;
+  let empruntAlice: number;
 
   before(async () => {
     await reinitialiserBase();

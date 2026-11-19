@@ -22,3 +22,4 @@ if (!resultat.success) {
 }
 
 export const config = resultat.data;
+export type Config = typeof config;

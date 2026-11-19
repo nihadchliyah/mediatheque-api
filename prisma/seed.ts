@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { prisma } from '../src/db.js';
+import { prisma } from '../src/db.ts';
 
 const ouvrages = [
   { titre: 'Les Misérables', auteur: 'Victor Hugo', annee: 1862 },
@@ -15,12 +15,12 @@ const ouvrages = [
 ];
 
 const comptes = [
-  { email: 'biblio@example.net', motDePasse: 'Biblio-Demo-2026', role: 'bibliothecaire' },
-  { email: 'camille@example.net', motDePasse: 'Camille-Demo-2026', role: 'membre' },
-  { email: 'leo@example.net', motDePasse: 'Leo-Demo-2026', role: 'membre' },
+  { email: 'biblio@example.net', motDePasse: 'Biblio-Demo-2026', role: 'bibliothecaire' as const },
+  { email: 'camille@example.net', motDePasse: 'Camille-Demo-2026', role: 'membre' as const },
+  { email: 'leo@example.net', motDePasse: 'Leo-Demo-2026', role: 'membre' as const },
 ];
 
-const jours = (n) => new Date(Date.now() + n * 24 * 60 * 60 * 1000);
+const jours = (n: number) => new Date(Date.now() + n * 24 * 60 * 60 * 1000);
 
 async function main() {
   const utilisateurs = await Promise.all(comptes.map(async ({ motDePasse, ...compte }) => ({

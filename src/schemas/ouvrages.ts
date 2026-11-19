@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { booleenQuery, pagination } from './communs.js';
+import { booleenQuery, pagination } from './communs.ts';
 
 const anneeCourante = () => new Date().getFullYear();
 
@@ -20,3 +20,7 @@ export const listerOuvrages = z.object({
   ...pagination,
   disponible: booleenQuery.optional(),
 });
+
+export type CreerOuvrage = z.output<typeof creerOuvrage>;
+export type ModifierOuvrage = z.output<typeof modifierOuvrage>;
+export type ListerOuvrages = z.output<typeof listerOuvrages>;

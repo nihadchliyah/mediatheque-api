@@ -1,10 +1,10 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { client, demarrer, prisma, reinitialiserBase } from './aide.js';
+import { client, demarrer, prisma, reinitialiserBase, type Requete, type Serveur } from './aide.ts';
 
 describe('Durcissement', () => {
-  let serveur;
-  let requete;
+  let serveur: Serveur;
+  let requete: Requete;
 
   before(async () => {
     await reinitialiserBase();

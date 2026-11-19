@@ -1,6 +1,6 @@
-import { config } from './config.js';
-import { creerApp } from './app.js';
-import { prisma } from './db.js';
+import { config } from './config.ts';
+import { creerApp } from './app.ts';
+import { prisma } from './db.ts';
 
 const serveur = creerApp().listen(config.PORT, () => {
   console.log(`API médiathèque sur http://localhost:${config.PORT}`);

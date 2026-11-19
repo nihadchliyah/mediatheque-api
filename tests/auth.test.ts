@@ -1,11 +1,11 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { decodeJwt } from 'jose';
-import { BIBLIO, client, connecter, demarrer, prisma, reinitialiserBase } from './aide.js';
+import { BIBLIO, client, connecter, demarrer, prisma, reinitialiserBase, type Requete, type Serveur } from './aide.ts';
 
 describe('Authentification', () => {
-  let serveur;
-  let requete;
+  let serveur: Serveur;
+  let requete: Requete;
   const membre = { email: 'alice@example.net', motDePasse: 'Alice-Test-2026' };
 
   before(async () => {
@@ -30,7 +30,7 @@ describe('Authentification', () => {
     assert.equal(corps.motDePasseHache, undefined);
 
     const enBase = await prisma.utilisateur.findUnique({ where: { email: membre.email } });
-    assert.match(enBase.motDePasseHache, /^\$2[aby]\$12\$/);
+    assert.match(enBase?.motDePasseHache ?? '', /^\$2[aby]\$12\$/);
   });
 
   it('inscription : 409 si l’e-mail existe déjà', async () => {
@@ -43,7 +43,7 @@ describe('Authentification', () => {
       corps: { email: 'pas-un-email', motDePasse: 'court' },
     });
     assert.equal(statut, 400);
-    assert.deepEqual([...new Set(corps.champs.map((c) => c.champ))].sort(), ['email', 'motDePasse']);
+    assert.deepEqual([...new Set(corps.champs.map((c: { champ: string }) => c.champ))].sort(), ['email', 'motDePasse']);
   });
 
   it('connexion réussie : renvoie un access token de 15 minutes et un refresh token', async () => {
@@ -54,7 +54,7 @@ describe('Authentification', () => {
 
     const charge = decodeJwt(corps.accessToken);
     assert.equal(charge.role, 'membre');
-    assert.ok(charge.exp - charge.iat <= 15 * 60);
+    assert.ok((charge.exp ?? Infinity) - (charge.iat ?? 0) <= 15 * 60);
     assert.ok(!JSON.stringify(charge).includes('motDePasse'));
   });
 
