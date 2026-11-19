@@ -12,10 +12,14 @@ import { routeurOuvrages } from './routes/ouvrages.ts';
 import { routeurEmprunts } from './routes/emprunts.ts';
 import { routeurReservations } from './routes/reservations.ts';
 import { routeurDocs } from './routes/docs.ts';
+import { creerRouteurAssistant } from './routes/assistant.ts';
+import { creerFournisseur, type FournisseurIA } from './services/assistant/index.ts';
 
 export type OptionsApp = {
   originesAutorisees?: string[];
   limiteAuth?: number;
+  limiteAssistant?: number;
+  fournisseurIA?: FournisseurIA;
 };
 
 export const limiteur = (fenetreMs: number, limite: number, message: string) => rateLimit({
@@ -26,7 +30,12 @@ export const limiteur = (fenetreMs: number, limite: number, message: string) => 
   handler: (_req, _res, next) => next(new ErreurHttp(429, message)),
 });
 
-export function creerApp({ originesAutorisees = config.CORS_ORIGINS, limiteAuth = 10 }: OptionsApp = {}) {
+export function creerApp({
+  originesAutorisees = config.CORS_ORIGINS,
+  limiteAuth = 10,
+  limiteAssistant = 10,
+  fournisseurIA = creerFournisseur(),
+}: OptionsApp = {}) {
   const app = express();
 
   app.disable('x-powered-by');
@@ -51,6 +60,7 @@ export function creerApp({ originesAutorisees = config.CORS_ORIGINS, limiteAuth 
   app.use('/api/ouvrages', authentifier, routeurOuvrages);
   app.use('/api/emprunts', authentifier, routeurEmprunts);
   app.use('/api/reservations', authentifier, routeurReservations);
+  app.use('/api/assistant', authentifier, creerRouteurAssistant(fournisseurIA, limiteAssistant));
 
   app.use(routeInconnue);
   app.use(gestionnaireErreurs);
