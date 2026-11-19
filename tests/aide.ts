@@ -18,7 +18,7 @@ export async function reinitialiserBase() {
   if (!new URL(process.env.DATABASE_URL ?? 'x:').pathname.includes('test')) {
     throw new Error('Les tests doivent utiliser une base de test');
   }
-  await prisma.$executeRaw`TRUNCATE TABLE refresh_tokens, emprunts, ouvrages, utilisateurs RESTART IDENTITY CASCADE`;
+  await prisma.$executeRaw`TRUNCATE TABLE refresh_tokens, reservations, emprunts, ouvrages, utilisateurs RESTART IDENTITY CASCADE`;
   await prisma.utilisateur.create({
     data: { email: BIBLIO.email, motDePasseHache: await bcrypt.hash(BIBLIO.motDePasse, 12), role: 'bibliothecaire' },
   });

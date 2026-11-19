@@ -21,6 +21,7 @@ model Utilisateur {
   majLe           DateTime       @updatedAt
   emprunts        Emprunt[]
   refreshTokens   RefreshToken[]
+  reservations    Reservation[]
 
   @@map("utilisateurs")
 }
@@ -39,14 +40,15 @@ model RefreshToken {
 }
 
 model Ouvrage {
-  id         Int       @id @default(autoincrement())
-  titre      String    @db.VarChar(150)
-  auteur     String    @db.VarChar(100)
-  annee      Int
-  disponible Boolean   @default(true)
-  creeLe     DateTime  @default(now())
-  majLe      DateTime  @updatedAt
-  emprunts   Emprunt[]
+  id           Int           @id @default(autoincrement())
+  titre        String        @db.VarChar(150)
+  auteur       String        @db.VarChar(100)
+  annee        Int
+  disponible   Boolean       @default(true)
+  creeLe       DateTime      @default(now())
+  majLe        DateTime      @updatedAt
+  emprunts     Emprunt[]
+  reservations Reservation[]
 
   @@unique([titre, auteur])
   @@map("ouvrages")
@@ -67,4 +69,18 @@ model Emprunt {
   @@index([ouvrageId])
   @@index([utilisateurId])
   @@map("emprunts")
+}
+
+model Reservation {
+  id            Int         @id @default(autoincrement())
+  ouvrageId     Int
+  ouvrage       Ouvrage     @relation(fields: [ouvrageId], references: [id], onDelete: Cascade)
+  utilisateurId Int
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  creeLe        DateTime    @default(now())
+
+  @@unique([ouvrageId, utilisateurId])
+  @@index([ouvrageId, creeLe])
+  @@index([utilisateurId])
+  @@map("reservations")
 }

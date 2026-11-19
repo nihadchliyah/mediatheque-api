@@ -29,7 +29,7 @@ async function main() {
   })));
 
   await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`TRUNCATE TABLE refresh_tokens, emprunts, ouvrages, utilisateurs RESTART IDENTITY CASCADE`;
+    await tx.$executeRaw`TRUNCATE TABLE refresh_tokens, reservations, emprunts, ouvrages, utilisateurs RESTART IDENTITY CASCADE`;
     await tx.utilisateur.createMany({ data: utilisateurs });
     await tx.ouvrage.createMany({ data: ouvrages });
 
@@ -41,8 +41,15 @@ async function main() {
       ],
     });
     await tx.ouvrage.updateMany({ where: { id: { in: [1, 2] } }, data: { disponible: false } });
+
+    await tx.reservation.createMany({
+      data: [
+        { ouvrageId: 1, utilisateurId: 3, creeLe: jours(-2) },
+        { ouvrageId: 2, utilisateurId: 2, creeLe: jours(-1) },
+      ],
+    });
   });
-  console.log('Seed terminé : 3 comptes, 10 ouvrages, 3 emprunts (dont 1 rendu).');
+  console.log('Seed terminé : 3 comptes, 10 ouvrages, 3 emprunts (dont 1 rendu), 2 réservations.');
 }
 
 main()
