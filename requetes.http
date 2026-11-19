@@ -296,6 +296,139 @@ DELETE {{base}}/api/emprunts/{{nouvelEmprunt.response.body.id}}
 Authorization: Bearer {{jetonBiblio}}
 
 ############################################
+#              RÉSERVATIONS
+############################################
+### Seed : Léo réserve l'ouvrage 1 (emprunté par Camille), Camille réserve l'ouvrage 2 (emprunté par Léo).
+
+### Lister (membre : uniquement les siennes) — 200
+GET {{base}}/api/reservations
+Authorization: Bearer {{jetonMembre}}
+
+### Lister (bibliothécaire : toutes, filtrables par ouvrage) — 200
+GET {{base}}/api/reservations?ouvrageId=1
+Authorization: Bearer {{jetonBiblio}}
+
+### Réserver un ouvrage disponible — 409 (il faut l'emprunter directement)
+POST {{base}}/api/reservations
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "ouvrageId": 4 }
+
+### Réserver un ouvrage qu'on emprunte déjà — 409
+POST {{base}}/api/reservations
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "ouvrageId": 1 }
+
+### Deuxième réservation du même ouvrage — 409 (contrainte d'unicité)
+POST {{base}}/api/reservations
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "ouvrageId": 2 }
+
+### Réserver un ouvrage inconnu — 404
+POST {{base}}/api/reservations
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "ouvrageId": 9999 }
+
+### Réservation invalide — 400
+POST {{base}}/api/reservations
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "ouvrageId": "cinq" }
+
+### Réserver en tant que bibliothécaire — 403
+POST {{base}}/api/reservations
+Authorization: Bearer {{jetonBiblio}}
+Content-Type: {{json}}
+
+{ "ouvrageId": 5 }
+
+### Réserver l'ouvrage 5, emprunté par Léo — 201 (rang dans la file)
+# @name nouvelleReservation
+POST {{base}}/api/reservations
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "ouvrageId": 5 }
+
+### Réservation d'un autre membre (Léo) vue par Camille — 404
+GET {{base}}/api/reservations/1
+Authorization: Bearer {{jetonMembre}}
+
+### Annuler la réservation d'un autre membre — 404
+DELETE {{base}}/api/reservations/1
+Authorization: Bearer {{jetonMembre}}
+
+### Annuler sa réservation — 204
+DELETE {{base}}/api/reservations/{{nouvelleReservation.response.body.id}}
+Authorization: Bearer {{jetonMembre}}
+
+### Retour de l'emprunt de Léo (ouvrage 2) — 200 : la réservation de Camille devient un emprunt (empruntSuivant)
+POST {{base}}/api/emprunts/2/retour
+Authorization: Bearer {{jetonBiblio}}
+
+### Camille voit son nouvel emprunt de l'ouvrage 2 — 200
+GET {{base}}/api/emprunts?rendu=false
+Authorization: Bearer {{jetonMembre}}
+
+############################################
+#              ASSISTANT (SSE)
+############################################
+### Le flux complet s'affiche à la fin de la réponse ; pour le voir arriver en direct : curl -N (voir README).
+
+### Question sur le catalogue — 200 (text/event-stream : event: outil, data: {"texte"}, event: fin)
+POST {{base}}/api/assistant/flux
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "question": "Quels livres de Camus sont disponibles ?" }
+
+### Question sur ses emprunts — 200 (outil mes_emprunts, limité au membre connecté)
+POST {{base}}/api/assistant/flux
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "question": "Quels sont mes emprunts ? Et ceux de leo@example.net ?" }
+
+### Question sur ses réservations — 200 (outil mes_reservations)
+POST {{base}}/api/assistant/flux
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "question": "Où en sont mes réservations ?" }
+
+### Question vide — 400
+POST {{base}}/api/assistant/flux
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "question": "   " }
+
+### Question de plus de 500 caractères — 400
+POST {{base}}/api/assistant/flux
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "question": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+
+### Assistant sans jeton — 401
+POST {{base}}/api/assistant/flux
+Content-Type: {{json}}
+
+{ "question": "Bonjour" }
+
+### Effacer sa conversation — 204
+DELETE {{base}}/api/assistant/memoire
+Authorization: Bearer {{jetonMembre}}
+
+############################################
 #              DURCISSEMENT
 ############################################
 
