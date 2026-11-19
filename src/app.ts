@@ -10,6 +10,7 @@ import { gestionnaireErreurs, routeInconnue } from './middlewares/erreurs.ts';
 import { routeurAuth } from './routes/auth.ts';
 import { routeurOuvrages } from './routes/ouvrages.ts';
 import { routeurEmprunts } from './routes/emprunts.ts';
+import { routeurReservations } from './routes/reservations.ts';
 
 export type OptionsApp = {
   originesAutorisees?: string[];
@@ -47,6 +48,7 @@ export function creerApp({ originesAutorisees = config.CORS_ORIGINS, limiteAuth 
   app.use('/api/auth', limiteur(15 * 60 * 1000, limiteAuth, 'Trop de tentatives, réessayez dans 15 minutes'), routeurAuth);
   app.use('/api/ouvrages', authentifier, routeurOuvrages);
   app.use('/api/emprunts', authentifier, routeurEmprunts);
+  app.use('/api/reservations', authentifier, routeurReservations);
 
   app.use(routeInconnue);
   app.use(gestionnaireErreurs);

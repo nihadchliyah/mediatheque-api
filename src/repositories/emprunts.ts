@@ -1,5 +1,6 @@
-import { prisma } from '../db.ts';
+import { prisma, type Transaction } from '../db.ts';
 import { Conflit, NonTrouve, RequeteInvalide } from '../erreurs.ts';
+import { verrouillerOuvrage } from './ouvrages.ts';
 import type { CreerEmprunt, ListerEmprunts, ModifierEmprunt } from '../schemas/emprunts.ts';
 
 const relations = {
@@ -8,6 +9,9 @@ const relations = {
 } as const;
 
 type Criteres = { rendu?: boolean; utilisateurId?: number };
+
+export const DUREE_EMPRUNT_JOURS = 21;
+const dansJours = (n: number) => new Date(Date.now() + n * 24 * 60 * 60 * 1000);
 
 const filtre = ({ rendu, utilisateurId }: Criteres) => ({
   ...(rendu !== undefined && { rendu }),
@@ -70,16 +74,31 @@ export function retourner(id: number, utilisateurId?: number) {
     const emprunt = await tx.emprunt.findFirst({ where, include: relations });
     if (!emprunt) throw new NonTrouve(`Emprunt ${id} introuvable`);
     if (count === 0) throw new Conflit(`L'emprunt ${id} est déjà rendu`);
-    await tx.ouvrage.update({ where: { id: emprunt.ouvrageId }, data: { disponible: true } });
-    return emprunt;
+    const empruntSuivant = await liberer(tx, emprunt.ouvrageId);
+    return { ...emprunt, empruntSuivant };
   });
 }
 
 export function supprimer(id: number) {
   return prisma.$transaction(async (tx) => {
     const emprunt = await tx.emprunt.delete({ where: { id } });
-    if (!emprunt.rendu) {
-      await tx.ouvrage.update({ where: { id: emprunt.ouvrageId }, data: { disponible: true } });
-    }
+    if (!emprunt.rendu) await liberer(tx, emprunt.ouvrageId);
+  });
+}
+
+async function liberer(tx: Transaction, ouvrageId: number) {
+  await verrouillerOuvrage(tx, ouvrageId);
+  const suivante = await tx.reservation.findFirst({
+    where: { ouvrageId },
+    orderBy: [{ creeLe: 'asc' }, { id: 'asc' }],
+  });
+  if (!suivante) {
+    await tx.ouvrage.update({ where: { id: ouvrageId }, data: { disponible: true } });
+    return null;
+  }
+  await tx.reservation.delete({ where: { id: suivante.id } });
+  return tx.emprunt.create({
+    data: { ouvrageId, utilisateurId: suivante.utilisateurId, dateRetourPrevue: dansJours(DUREE_EMPRUNT_JOURS) },
+    include: relations,
   });
 }
