@@ -1,11 +1,9 @@
 import { z } from 'zod';
-import { booleenQuery, dateIso, pagination } from './communs.js';
-
-const emprunteur = z.string().trim().min(2, '2 caractères minimum').max(80, '80 caractères maximum');
+import { booleenQuery, dateIso, identifiant, identifiantTexte, pagination } from './communs.js';
 
 export const creerEmprunt = z.object({
-  ouvrageId: z.number().int().positive(),
-  emprunteur,
+  ouvrageId: identifiant,
+  utilisateurId: identifiant.optional(),
   dateEmprunt: dateIso.optional(),
   dateRetourPrevue: dateIso,
 }).refine(
@@ -14,13 +12,17 @@ export const creerEmprunt = z.object({
 );
 
 export const modifierEmprunt = z.object({
-  emprunteur,
   dateEmprunt: dateIso,
   dateRetourPrevue: dateIso,
 }).partial()
-  .refine((o) => Object.keys(o).length > 0, 'Au moins un champ à modifier');
+  .refine((o) => Object.keys(o).length > 0, 'Au moins un champ à modifier (dateEmprunt, dateRetourPrevue)')
+  .refine(
+    (o) => !o.dateEmprunt || !o.dateRetourPrevue || o.dateRetourPrevue > o.dateEmprunt,
+    { message: "La date de retour prévue doit être postérieure à la date d'emprunt", path: ['dateRetourPrevue'] },
+  );
 
 export const listerEmprunts = z.object({
   ...pagination,
   rendu: booleenQuery.optional(),
+  utilisateurId: identifiantTexte.optional(),
 });

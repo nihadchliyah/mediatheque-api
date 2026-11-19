@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs';
 import { prisma } from '../src/db.js';
 
 const ouvrages = [
@@ -13,23 +14,35 @@ const ouvrages = [
   { titre: 'Candide', auteur: 'Voltaire', annee: 1759 },
 ];
 
+const comptes = [
+  { email: 'biblio@example.net', motDePasse: 'Biblio-Demo-2026', role: 'bibliothecaire' },
+  { email: 'camille@example.net', motDePasse: 'Camille-Demo-2026', role: 'membre' },
+  { email: 'leo@example.net', motDePasse: 'Leo-Demo-2026', role: 'membre' },
+];
+
 const jours = (n) => new Date(Date.now() + n * 24 * 60 * 60 * 1000);
 
 async function main() {
+  const utilisateurs = await Promise.all(comptes.map(async ({ motDePasse, ...compte }) => ({
+    ...compte,
+    motDePasseHache: await bcrypt.hash(motDePasse, 12),
+  })));
+
   await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`TRUNCATE TABLE emprunts, ouvrages RESTART IDENTITY CASCADE`;
+    await tx.$executeRaw`TRUNCATE TABLE refresh_tokens, emprunts, ouvrages, utilisateurs RESTART IDENTITY CASCADE`;
+    await tx.utilisateur.createMany({ data: utilisateurs });
     await tx.ouvrage.createMany({ data: ouvrages });
 
     await tx.emprunt.createMany({
       data: [
-        { ouvrageId: 1, emprunteur: 'Camille', dateEmprunt: jours(-5), dateRetourPrevue: jours(16) },
-        { ouvrageId: 2, emprunteur: 'Léo', dateEmprunt: jours(-10), dateRetourPrevue: jours(11) },
-        { ouvrageId: 3, emprunteur: 'Inès', dateEmprunt: jours(-30), dateRetourPrevue: jours(-9), rendu: true },
+        { ouvrageId: 1, utilisateurId: 2, dateEmprunt: jours(-5), dateRetourPrevue: jours(16) },
+        { ouvrageId: 2, utilisateurId: 3, dateEmprunt: jours(-10), dateRetourPrevue: jours(11) },
+        { ouvrageId: 3, utilisateurId: 2, dateEmprunt: jours(-30), dateRetourPrevue: jours(-9), rendu: true },
       ],
     });
     await tx.ouvrage.updateMany({ where: { id: { in: [1, 2] } }, data: { disponible: false } });
   });
-  console.log('Seed terminé : 10 ouvrages, 3 emprunts (dont 1 rendu).');
+  console.log('Seed terminé : 3 comptes, 10 ouvrages, 3 emprunts (dont 1 rendu).');
 }
 
 main()

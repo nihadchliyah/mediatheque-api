@@ -1,11 +1,9 @@
-import 'dotenv/config';
-import { app } from './app.js';
+import { config } from './config.js';
+import { creerApp } from './app.js';
 import { prisma } from './db.js';
 
-const port = Number(process.env.PORT) || 3000;
-
-const serveur = app.listen(port, () => {
-  console.log(`API médiathèque sur http://localhost:${port}`);
+const serveur = creerApp().listen(config.PORT, () => {
+  console.log(`API médiathèque sur http://localhost:${config.PORT}`);
 });
 
 async function arreter() {

@@ -3,9 +3,9 @@ services:
     image: postgres:17
     container_name: mediatheque-db
     environment:
-      POSTGRES_USER: mediatheque
-      POSTGRES_PASSWORD: mediatheque
-      POSTGRES_DB: mediatheque
+      POSTGRES_USER: ${POSTGRES_USER:?Définir POSTGRES_USER dans .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Définir POSTGRES_PASSWORD dans .env}
+      POSTGRES_DB: ${POSTGRES_DB:-mediatheque}
     ports:
       - "5434:5432"
     volumes:
