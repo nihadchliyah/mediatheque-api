@@ -5,6 +5,7 @@ import { connexion, inscription, rafraichir } from '../schemas/auth.ts';
 import { creerOuvrage, listerOuvrages, modifierOuvrage } from '../schemas/ouvrages.ts';
 import { creerEmprunt, listerEmprunts, modifierEmprunt } from '../schemas/emprunts.ts';
 import { creerReservation, listerReservations } from '../schemas/reservations.ts';
+import { questionAssistant } from '../schemas/assistant.ts';
 import * as R from '../schemas/reponses.ts';
 
 const json = (description: string, schema: z.ZodType): ZodOpenApiResponseObject => ({
@@ -59,6 +60,7 @@ export const documentOpenApi = createDocument({
     { name: 'Ouvrages', description: 'Lecture pour tout utilisateur connecté, écriture réservée au bibliothécaire' },
     { name: 'Emprunts' },
     { name: 'Réservations' },
+    { name: 'Assistant', description: 'Assistant conversationnel, 10 questions par minute et par utilisateur' },
   ],
   components: {
     securitySchemes: {
@@ -223,6 +225,39 @@ export const documentOpenApi = createDocument({
         summary: 'Annuler une réservation',
         requestParams: parId,
         responses: { 204: sansCorps('Réservation annulée'), ...avec(400, 404) },
+      }),
+    },
+
+    '/api/assistant/flux': {
+      post: protegee({
+        tags: ['Assistant'],
+        summary: "Poser une question à l'assistant (réponse en Server-Sent Events)",
+        description: [
+          'La réponse est un flux `text/event-stream` :',
+          '- `event: outil` / `data: {"nom": "mes_emprunts"}` quand un outil est appelé ;',
+          '- `data: {"texte": "..."}` pour chaque fragment de réponse ;',
+          '- `event: fin` / `data: {}` en fin de réponse, ou `event: erreur` / `data: {"erreur": "..."}`.',
+          '',
+          "Les outils (rechercher_ouvrages, mes_emprunts, mes_reservations) n'acceptent aucun identifiant :",
+          "ils utilisent celui du jeton. La génération s'arrête quand le client ferme la connexion.",
+          'La conversation est mémorisée par utilisateur et tronquée aux dix derniers échanges.',
+          "Swagger UI attend la fin du flux pour l'afficher : utilisez `curl -N` pour le voir en direct.",
+        ].join('\n'),
+        requestBody: corps(questionAssistant),
+        responses: {
+          200: {
+            description: "Flux d'événements",
+            content: { 'text/event-stream': { schema: R.fluxSse } },
+          },
+          ...avec(400),
+        },
+      }),
+    },
+    '/api/assistant/memoire': {
+      delete: protegee({
+        tags: ['Assistant'],
+        summary: "Effacer la conversation de l'utilisateur connecté",
+        responses: { 204: sansCorps('Conversation effacée') },
       }),
     },
   },

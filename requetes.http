@@ -379,6 +379,56 @@ GET {{base}}/api/emprunts?rendu=false
 Authorization: Bearer {{jetonMembre}}
 
 ############################################
+#              ASSISTANT (SSE)
+############################################
+### Le flux complet s'affiche à la fin de la réponse ; pour le voir arriver en direct : curl -N (voir README).
+
+### Question sur le catalogue — 200 (text/event-stream : event: outil, data: {"texte"}, event: fin)
+POST {{base}}/api/assistant/flux
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "question": "Quels livres de Camus sont disponibles ?" }
+
+### Question sur ses emprunts — 200 (outil mes_emprunts, limité au membre connecté)
+POST {{base}}/api/assistant/flux
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "question": "Quels sont mes emprunts ? Et ceux de leo@example.net ?" }
+
+### Question sur ses réservations — 200 (outil mes_reservations)
+POST {{base}}/api/assistant/flux
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "question": "Où en sont mes réservations ?" }
+
+### Question vide — 400
+POST {{base}}/api/assistant/flux
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "question": "   " }
+
+### Question de plus de 500 caractères — 400
+POST {{base}}/api/assistant/flux
+Authorization: Bearer {{jetonMembre}}
+Content-Type: {{json}}
+
+{ "question": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+
+### Assistant sans jeton — 401
+POST {{base}}/api/assistant/flux
+Content-Type: {{json}}
+
+{ "question": "Bonjour" }
+
+### Effacer sa conversation — 204
+DELETE {{base}}/api/assistant/memoire
+Authorization: Bearer {{jetonMembre}}
+
+############################################
 #              DURCISSEMENT
 ############################################
 

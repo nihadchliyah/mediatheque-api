@@ -80,3 +80,12 @@ export const page = <T extends z.ZodType>(element: T, nom: string) => z.object({
 }).meta({ id: nom });
 
 export const sante = z.object({ statut: z.literal('ok') });
+
+export const fluxSse = z.string().meta({
+  id: 'FluxSse',
+  example: [
+    'event: outil', 'data: {"nom":"mes_emprunts"}', '',
+    'data: {"texte":"Vous avez 1 emprunt en cours."}', '',
+    'event: fin', 'data: {}', '',
+  ].join('\n'),
+});
